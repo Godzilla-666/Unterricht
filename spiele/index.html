@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXORA Arcade</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080a13;color:#fff;font-family:Arial,sans-serif;text-align:center}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px max(4%,calc((100% - 1000px)/2));background:#101321;border-bottom:1px solid #26324a}
+.logo{color:#00eaff;font-size:22px;font-weight:900;letter-spacing:2px}
+button,.back{border:1px solid #00dff5;background:#10243b;color:#dffaff;border-radius:7px;padding:10px 15px;cursor:pointer;font-weight:bold}
+button:hover,.back:hover{background:#00cde9;color:#06101d}
+main{max-width:1000px;margin:25px auto;padding:0 15px}
+.intro{color:#aab8cf;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:15px;margin:25px 0}
+.card{background:#121827;border:1px solid #27334b;border-radius:12px;padding:20px;cursor:pointer;text-align:left;transition:.2s}
+.card:hover{border-color:#00eaff;transform:translateY(-4px)}
+.emoji{font-size:38px}
+.card h3{margin:10px 0}
+.card p{font-size:13px;color:#9aa9c2;min-height:36px}
+#screen{display:none}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:15px auto;max-width:800px}
+canvas{display:block;width:min(94vw,800px);height:auto;max-height:68vh;margin:0 auto;background:#0d1729;border:2px solid #00d9ff;border-radius:8px;touch-action:none}
+#help{color:#aab8cf;font-size:13px;line-height:1.6;margin:12px auto;max-width:800px}
+#overlay{display:none;position:fixed;inset:0;background:#030713d9;z-index:5;place-items:center;padding:20px}
+#overlay.show{display:grid}
+.modal{background:#111c32;border:1px solid #00eaff;border-radius:14px;padding:28px;max-width:390px;width:100%;box-shadow:0 0 35px #00d9ff55}
+.modal h2{color:#00eaff}
+.modal p{line-height:1.6;color:#c3d0e4}
+@media(max-width:600px){
+ header{padding:12px}
+ .logo{font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NEXORA ARCADE</div>
+  <button onclick="location.href='../index.html'">🏠 HOMEPAGE</button>
+</header>
+
+<main>
+  <section id="lobby">
+    <h1>Wähle dein Spiel</h1>
+    <p class="intro">Acht kleine Arcade-Abenteuer – direkt im Browser spielbar. Deine Highscores werden auf diesem Gerät gespeichert.</p>
+    <div class="grid" id="games"></div>
+  </section>
+
+  <section id="screen">
+    <div class="bar">
+      <button onclick="backToLobby()">← ALLE SPIELE</button>
+      <h2 id="gameTitle">Spiel</h2>
+      <strong id="score">Punkte: 0</strong>
+      <button onclick="restart()">↻ NEUSTART</button>
+    </div>
+    <canvas id="c" width="800" height="520"></canvas>
+    <p id="help"></p>
+  </section>
+</main>
+
+<div id="overlay">
+  <div class="modal">
+    <h2 id="overTitle">Spiel vorbei</h2>
+    <p id="overText"></p>
+    <button onclick="restart()">NOCHMAL SPIELEN</button>
+    <button onclick="backToLobby()">SPIELE-MENÜ</button>
+  </div>
+</div>
+
+<script>
+const catalog=[
+['space','🚀','SPACE SHOOTER','Pfeiltasten oder A/D bewegen, Leertaste schießen.'],
+['snake','🐍','NEON SNAKE','Pfeiltasten oder WASD. Sammle die leuchtenden Punkte.'],
+['racing','🏎️','NEON RACING','A/D oder ←/→ zum Ausweichen. Überlebe den Verkehr.'],
+['blocks','🧱','BLOCK WORLD','Klicke auf Felder: Linksklick abbauen, Rechtsklick setzen.'],
+['zombie','🧟','ZOMBIE SURVIVAL','WASD bewegen, Maus zielen, klicken oder Leertaste schießen.'],
+['platform','🦘','JUMP & RUN','A/D oder Pfeile bewegen, W/↑/Leertaste springen.'],
+['tower','🏰','TOWER DEFENSE','Klicke auf freie Felder, um Türme zu platzieren.'],
+['duo','👾','DUO ARENA','Spieler 1: WASD. Spieler 2: Pfeiltasten. Fang den anderen!']
+];
+
+const $=id=>document.getElementById(id);
+const c=$('c');
+const ctx=c.getContext('2d');
+
+let gameId='';
+let active=false;
+let raf=0;
+let score=0;
+let frame=0;
+let keys={};
+let mouse={x:400,y:260,down:false};
+let state={};
+
+$('games').innerHTML=catalog.map(g=>
+`<div class="card" onclick="start('${g[0]}')">
+  <div class="emoji">${g[1]}</div>
+  <h3>${g[2]}</h3>
+  <p>${g[3]}</p>
+  <button>SPIEL STARTEN →</button>
+</div>`
+).join('');
+
+document.addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup',e=>{
+  keys[e.key.toLowerCase()]=false;
+});
+
+c.addEventListener('mousemove',e=>{
+  let r=c.getBoundingClientRect();
+  mouse.x=(e.clientX-r.left)*c.width/r.width;
+  mouse.y=(e.clientY-r.top)*c.height/r.height;
+});
+
+c.addEventListener('mousedown',e=>{
+  mouse.down=true;
+  let r=c.getBoundingClientRect();
+  mouse.x=(e.clientX-r.left)*c.width/r.width;
+  mouse.y=(e.clientY-r.top)*c.height/r.height;
+  if(gameId==='blocks')blockClick(e.button);
+  if(gameId==='tower')towerClick();
+});
+
+addEventListener('mouseup',()=>mouse.down=false);
+c.addEventListener('contextmenu',e=>e.preventDefault());
+
+function start(id){
+  gameId=id;
+  $('lobby').style.display='none';
+  $('screen').style.display='block';
+  let g=catalog.find(x=>x[0]===id);
+  $('gameTitle').textContent=g[2];
+  $('help').textContent=g[3];
+  $('overlay').classList.remove('show');
+  init();
+  active=true;
+  cancelAnimationFrame(raf);
+  loop();
+}
+
+function backToLobby(){
+  active=false;
+  cancelAnimationFrame(raf);
+  $('overlay').classList.remove('show');
+  $('screen').style.display='none';
+  $('lobby').style.display='block';
+}
+
+function restart(){
+  init();
+  $('overlay').classList.remove('show');
+  active=true;
+  cancelAnimationFrame(raf);
+  loop();
+}
+
+function init(){
+  frame=0;
+  score=0;
+  keys={};
+  mouse.down=false;
+
+  state={
+    player:{x:400,y:420,r:13},
+    bullets:[],
+    foes:[],
+    stars:[],
+    blocks:Array.from({length:10},(_,y)=>
+      Array.from({length:15},(_,x)=>((x*7+y*3)%5===0?1:0))
+    ),
+    snake:[{x:10,y:10}],
+    dir:{x:1,y:0},
+    food:{x:5,y:5},
+    cars:[],
+    road:0,
+    zombies:[],
+    shots:[],
+    platforms:[],
+    tower:[],
+    enemies:[],
+    p1:{x:180,y:260},
+    p2:{x:620,y:260},
+    hp:10,
+    wave:1
+  };
+
+  if(gameId==='space'||gameId==='zombie'){
+    for(let i=0;i<5;i++)spawnEnemy();
+  }
+
+  if(gameId==='racing'){
+    state.cars=[];
+  }
+
+  if(gameId==='platform'){
+    state.platforms=[
+      {x:0,y:480,w:800,h:40},
+      {x:130,y:390,w:120,h:15},
+      {x:330,y:315,w:130,h:15},
+      {x:550,y:235,w:140,h:15}
+    ];
+    state.player={x:60,y:440,r:16,vy:0,ground:false};
+  }
+
+  if(gameId==='tower'){
+    state.path=Array.from({length:9},(_,i)=>({
+      x:i*90+25,
+      y:i%2===0?150:360
+    }));
+  }
+
+  if(gameId==='blocks'){
+    state.blocks=Array.from({length:10},(_,y)=>
+      Array.from({length:15},(_,x)=>
+        y>6?1:((x*3+y*7)%13===0?1:0)
+      )
+    );
+  }
+
+  updateScore();
+}
+
+function updateScore(){
+  $('score').textContent='Punkte: '+score;
+}
+
+function end(msg='Spiel vorbei!'){
+  active=false;
+  $('overTitle').textContent='RUNDE BEENDET';
+  $('overText').textContent=msg+' Dein Ergebnis: '+score+' Punkte.';
+  $('overlay').classList.add('show');
+}
+
+function spawnEnemy(){
+  state.foes.push({
+    x:Math.random()*740+30,
+    y:-20,
+    r:13,
+    v:2+Math.random()*2
+  });
+}
+
+function circle(x,y,r,col){
+  ctx.fillStyle=col;
+  ctx.shadowBlur=14;
+  ctx.shadowColor=col;
+  ctx.beginPath();
+  ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+function text(t,x,y,col='#fff',size=18){
+  ctx.fillStyle=col;
+  ctx.font=`bold ${size}px Arial`;
+  ctx.fillText(t,x,y);
+}
+
+function base(){
+  ctx.clearRect(0,0,800,520);
+  ctx.fillStyle='#0d1729';
+  ctx.fillRect(0,0,800,520);
+  ctx.strokeStyle='#172b45';
+
+  for(let x=0;x<800;x+=40){
+    ctx.beginPath();
+    ctx.moveTo(x,0);
+    ctx.lineTo(x,520);
+    ctx.stroke();
+  }
+
+  for(let y=0;y<520;y+=40){
+    ctx.beginPath();
+    ctx.moveTo(0,y);
+    ctx.lineTo(800,y);
+    ctx.stroke();
+  }
+}
+
+function loop(){
+  if(!active)return;
+  frame++;
+  base();
+
+  try{
+    tick();
+  }catch(e){
+    console.error(e);
+    end('Ein Spielfehler ist aufgetreten.');
+  }
+
+  updateScore();
+
+  if(active){
+    raf=requestAnimationFrame(loop);
+  }
+}
+
+function tick(){
+  if(gameId==='space')space();
+  if(gameId==='snake')snake();
+  if(gameId==='racing')racing();
+  if(gameId==='blocks')blocks();
+  if(gameId==='zombie')zombie();
+  if(gameId==='platform')platform();
+  if(gameId==='tower')tower();
+  if(gameId==='duo')duo();
+}
+
+function space(){
+  let p=state.player;
+
+  if(keys.a||keys.arrowleft)p.x-=6;
+  if(keys.d||keys.arrowright)p.x+=6;
+
+  p.x=Math.max(15,Math.min(785,p.x));
+
+  if(frame%12===0)state.bullets.push({x:p.x,y:400});
+  if(frame%42===0)spawnEnemy();
+
+  state.bullets.forEach(b=>b.y-=9);
+  state.foes.forEach(e=>e.y+=e.v);
+
+  state.foes=state.foes.filter(e=>{
+    if(e.y>540){
+      score=Math.max(0,score-2);
+      return false;
+    }
+
+    for(let b of state.bullets){
+      if(Math.hypot(b.x-e.x,b.y-e.y)<e.r+5){
+        b.hit=true;
+        score+=10;
+        return false;
+      }
+    }
+
+    if(Math.hypot(p.x-e.x,440-e.y)<e.r+15){
+      end('Dein Raumschiff wurde getroffen.');
+    }
+
+    return true;
+  });
+
+  state.bullets=state.bullets.filter(b=>b.y>0&&!b.hit);
+  state.bullets.forEach(b=>circle(b.x,b.y,5,'#52f7ff'));
+  state.foes.forEach(e=>circle(e.x,e.y,e.r,'#ff466d'));
+  circle(p.x,440,15,'#4affb0');
+  text('SPACE',20,30,'#6cecff',14);
+}
+
+function snake(){
+  if(frame%8===0){
+    if(keys.arrowup||keys.w)state.dir={x:0,y:-1};
+    if(keys.arrowdown||keys.s)state.dir={x:0,y:1};
+    if(keys.arrowleft||keys.a)state.dir={x:-1,y:0};
+    if(keys.arrowright||keys.d)state.dir={x:1,y:0};
+
+    let h={
+      x:state.snake[0].x+state.dir.x,
+      y:state.snake[0].y+state.dir.y
+    };
+
+    if(
+      h.x<0||h.x>=20||h.y<0||h.y>=13||
+      state.snake.some(s=>s.x===h.x&&s.y===h.y)
+    ){
+      end('Die Schlange ist gegen eine Wand oder sich selbst gestoßen.');
+      return;
+    }
+
+    state.snake.unshift(h);
+
+    if(h.x===state.food.x&&h.y===state.food.y){
+      score+=10;
+      state.food={
+        x:Math.floor(Math.random()*20),
+        y:Math.floor(Math.random()*13)
+      };
+    }else{
+      state.snake.pop();
+    }
+  }
+
+  circle(state.food.x*40+20,state.food.y*40+20,10,'#ffdc55');
+
+  state.snake.forEach((s,i)=>{
+    ctx.fillStyle=i?'#20a879':'#5affad';
+    ctx.fillRect(s.x*40+5,s.y*40+5,30,30);
+  });
+}
+
+function racing(){
+  state.road=(state.road+7)%80;
+
+  ctx.fillStyle='#27354a';
+  ctx.fillRect(180,0,440,520);
+
+  ctx.fillStyle='#d9e5f2';
+
+  for(let y=-80+state.road;y<520;y+=80){
+    ctx.fillRect(397,y,6,42);
+  }
+
+  let p=state.player;
+
+  if(keys.a||keys.arrowleft)p.x-=6;
+  if(keys.d||keys.arrowright)p.x+=6;
+
+  p.x=Math.max(205,Math.min(595,p.x));
+
+  if(frame%48===0){
+    state.cars.push({
+      x:220+Math.floor(Math.random()*5)*85,
+      y:-70
+    });
+  }
+
+  state.cars.forEach(e=>e.y+=5+Math.min(5,score/100));
+
+  state.cars=state.cars.filter(e=>{
+    if(e.y>560){
+      score+=5;
+      return false;
+    }
+
+    if(Math.abs(e.x-p.x)<38&&Math.abs(e.y-430)<65){
+      end('Crash! Du bist mit einem Auto zusammengestoßen.');
+    }
+
+    return true;
+  });
+
+  state.cars.forEach(e=>{
+    ctx.fillStyle='#ff476d';
+    ctx.fillRect(e.x-18,e.y-30,36,60);
+  });
+
+  ctx.fillStyle='#41f5ff';
+  ctx.fillRect(p.x-20,410,40,70);
+  text('DISTANZ '+score,20,30);
+}
+
+function blocks(){
+  let a=state.blocks;
+
+  for(let y=0;y<10;y++){
+    for(let x=0;x<15;x++){
+      ctx.fillStyle=a[y][x]?'#9b7047':'#14253a';
+      ctx.fillRect(x*53+2,y*52+2,49,48);
+
+      if(a[y][x]){
+        ctx.fillStyle='#c59a65';
+        ctx.fillRect(x*53+7,y*52+7,39,8);
+      }
+    }
+  }
+
+  text('BLOCK WORLD',20,30,'#b9e6ff',14);
+  text('Abgebaut: '+score,650,30,'#fff',14);
+}
+
+function blockClick(button){
+  let x=Math.floor(mouse.x/53);
+  let y=Math.floor(mouse.y/52);
+
+  if(x<0||x>=15||y<0||y>=10)return;
+
+  if(button===2){
+    if(!state.blocks[y][x])state.blocks[y][x]=1;
+  }else if(state.blocks[y][x]){
+    state.blocks[y][x]=0;
+    score++;
+  }
+}
+
+function zombie(){
+  let p=state.player;
+
+  if(keys.w||keys.arrowup)p.y-=3.5;
+  if(keys.s||keys.arrowdown)p.y+=3.5;
+  if(keys.a||keys.arrowleft)p.x-=3.5;
+  if(keys.d||keys.arrowright)p.x+=3.5;
+
+  p.x=Math.max(12,Math.min(788,p.x));
+  p.y=Math.max(12,Math.min(508,p.y));
+
+  if(frame%55===0)spawnEnemy();
+
+  if(mouse.down||keys[' ']){
+    if(frame%9===0){
+      state.shots.push({
+        x:p.x,
+        y:p.y,
+        tx:mouse.x,
+        ty:mouse.y
+      });
+    }
+  }
+
+  state.shots.forEach(b=>{
+    let dx=b.tx-b.x;
+    let dy=b.ty-b.y;
+    let d=Math.hypot(dx,dy)||1;
+    b.x+=dx/d*9;
+    b.y+=dy/d*9;
+  });
+
+  state.zombies=state.zombies.concat(state.foes.splice(0));
+
+  state.zombies.forEach(z=>{
+    let dx=p.x-z.x;
+    let dy=p.y-z.y;
+    let d=Math.hypot(dx,dy)||1;
+
+    z.x+=dx/d*z.v*.55;
+    z.y+=dy/d*z.v*.55;
+
+    if(d<24)end('Die Zombies haben dich erwischt.');
+  });
+
+  state.shots=state.shots.filter(b=>{
+    let hit=false;
+
+    state.zombies=state.zombies.filter(z=>{
+      if(Math.hypot(z.x-b.x,z.y-b.y)<z.r+5){
+        hit=true;
+        score+=10;
+        return false;
+      }
+      return true;
+    });
+
+    return !hit&&b.x>0&&b.x<800&&b.y>0&&b.y<520;
+  });
+
+  state.zombies.forEach(z=>circle(z.x,z.y,z.r,'#a6e35b'));
+  state.shots.forEach(b=>circle(b.x,b.y,4,'#ffe66d'));
+  circle(p.x,p.y,14,'#55dcff');
+}
+
+function platform(){
+  let p=state.player;
+
+  if(keys.a||keys.arrowleft)p.x-=4;
+  if(keys.d||keys.arrowright)p.x+=4;
+
+  if((keys.w||keys.arrowup||keys[' '])&&p.ground){
+    p.vy=-12;
+    p.ground=false;
+  }
+
+  p.vy+=.55;
+  p.y+=p.vy;
+  p.ground=false;
+
+  state.platforms.forEach(o=>{
+    ctx.fillStyle='#397b9c';
+    ctx.fillRect(o.x,o.y,o.w,o.h);
+
+    if(
+      p.x>o.x-15&&p.x<o.x+o.w+15&&
+      p.y+16>=o.y&&
+      p.y+16<=o.y+o.h+Math.max(8,p.vy)&&
+      p.vy>=0
+    ){
+      p.y=o.y-16;
+      p.vy=0;
+      p.ground=true;
+    }
+  });
+
+  if(p.y>540){
+    end('Du bist heruntergefallen.');
+    return;
+  }
+
+  if(p.x>790){
+    score+=100;
+    p.x=20;
+  }
+
+  p.x=Math.max(10,p.x);
+  circle(p.x,p.y,15,'#4affb0');
+
+  if(frame%100===0){
+    state.stars.push({
+      x:100+Math.random()*600,
+      y:100+Math.random()*250
+    });
+  }
+
+  state.stars=state.stars.filter(s=>{
+    circle(s.x,s.y,8,'#ffdf57');
+
+    if(Math.hypot(p.x-s.x,p.y-s.y)<22){
+      score+=10;
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function towerClick(){
+  let x=Math.floor(mouse.x/80);
+  let y=Math.floor(mouse.y/65);
+  let px=x*80+40;
+  let py=y*65+32;
+
+  if(
+    state.tower.length<12&&
+    !state.path.some(p=>Math.hypot(p.x-px,p.y-py)<55)
+  ){
+    state.tower.push({x:px,y:py,cool:0});
+    score=Math.max(0,score-5);
+  }
+}
+
+function tower(){
+  ctx.strokeStyle='#b78a48';
+  ctx.lineWidth=28;
+  ctx.beginPath();
+  ctx.moveTo(25,150);
+  ctx.lineTo(745,150);
+  ctx.lineTo(745,360);
+  ctx.lineTo(25,360);
+  ctx.stroke();
+  ctx.lineWidth=1;
+
+  if(frame%70===0){
+    state.enemies.push({x:25,y:150,segment:0,hp:3});
+  }
+
+  state.enemies.forEach(e=>{
+    let target=state.path[Math.min(e.segment+1,8)];
+    let dx=target.x-e.x;
+    let dy=target.y-e.y;
+    let d=Math.hypot(dx,dy)||1;
+
+    e.x+=dx/d*1.5;
+    e.y+=dy/d*1.5;
+
+    if(d<5)e.segment=Math.min(8,e.segment+1);
+  });
+
+  state.tower.forEach(t=>{
+    circle(t.x,t.y,17,'#51cfff');
+    t.cool--;
+
+    if(t.cool<=0&&state.enemies.length){
+      let target=state.enemies.reduce((a,b)=>
+        Math.hypot(a.x-t.x,a.y-t.y)<
+        Math.hypot(b.x-t.x,b.y-t.y)?a:b
+      );
+
+      if(Math.hypot(target.x-t.x,target.y-t.y)<170){
+        target.hp--;
+        t.cool=35;
+      }
+    }
+  });
+
+  state.enemies=state.enemies.filter(e=>{
+    circle(e.x,e.y,12,'#ff526f');
+
+    if(e.hp<=0){
+      score+=10;
+      return false;
+    }
+
+    if(e.segment>=8){
+      state.hp--;
+      if(state.hp<=0)end('Deine Basis wurde überrannt.');
+      return false;
+    }
+
+    return true;
+  });
+
+  text('Basis: '+state.hp+' | Türme: '+state.tower.length,20,30);
+}
+
+function duo(){
+  let a=state.p1;
+  let b=state.p2;
+
+  if(keys.w)a.y-=4;
+  if(keys.s)a.y+=4;
+  if(keys.a)a.x-=4;
+  if(keys.d)a.x+=4;
+
+  if(keys.arrowup)b.y-=4;
+  if(keys.arrowdown)b.y+=4;
+  if(keys.arrowleft)b.x-=4;
+  if(keys.arrowright)b.x+=4;
+
+  for(let p of [a,b]){
+    p.x=Math.max(12,Math.min(788,p.x));
+    p.y=Math.max(12,Math.min(508,p.y));
+  }
+
+  circle(a.x,a.y,17,'#43f4ff');
+  circle(b.x,b.y,17,'#ff5e92');
+
+  if(Math.hypot(a.x-b.x,a.y-b.y)<30){
+    score++;
+    let win=score>120;
+    if(win)end('Spieler 1 und Spieler 2 haben sich getroffen!');
+  }
+
+  text('SPIELER 1: WASD',20,30,'#43f4ff',14);
+  text('SPIELER 2: PFEILE',620,30,'#ff5e92',14);
+}
+</script>
+</body>
+</html>
