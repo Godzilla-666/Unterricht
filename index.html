@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXORA Gaming</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080a13;color:#fff;font-family:Arial,sans-serif}
+header{height:74px;padding:0 7%;display:flex;align-items:center;justify-content:space-between;background:#101321;border-bottom:1px solid #26324a;position:sticky;top:0;z-index:3}
+.logo{font-size:27px;font-weight:900;letter-spacing:3px;color:#00eaff;text-shadow:0 0 16px #00d9ff}
+nav{display:flex;gap:24px}
+nav a{color:#aab5ca;text-decoration:none}
+nav a:hover{color:#00eaff}
+.hero{text-align:center;padding:90px 20px 75px;background:radial-gradient(ellipse at center,#172d54,#080a13 70%)}
+.tag{color:#00eaff;letter-spacing:5px;font-size:12px}
+.hero h1{font-size:clamp(40px,8vw,76px);margin:24px 0;letter-spacing:4px}
+.hero h1 span{color:#00eaff;text-shadow:0 0 25px #00eaff}
+.hero p{color:#aab8cf;line-height:1.8}
+.btn{display:inline-block;margin-top:28px;padding:15px 34px;background:#00d5ef;color:#06101d;border-radius:7px;text-decoration:none;font-weight:bold}
+.wrap{width:88%;max-width:1200px;margin:55px auto}
+.heading{font-size:25px;margin-bottom:24px}
+.heading span{color:#00eaff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:20px}
+.card{background:#121827;border:1px solid #27334b;border-radius:13px;overflow:hidden;transition:.2s}
+.card:hover{transform:translateY(-6px);border-color:#00eaff;box-shadow:0 0 25px #00eaff25}
+.art{height:145px;display:grid;place-items:center;font-size:65px}
+.a1{background:linear-gradient(135deg,#092e46,#164d77)}
+.a2{background:linear-gradient(135deg,#210b42,#551c83)}
+.a3{background:linear-gradient(135deg,#07391d,#17663a)}
+.a4{background:linear-gradient(135deg,#49300b,#a56c1a)}
+.a5{background:linear-gradient(135deg,#3b101b,#8d2637)}
+.a6{background:linear-gradient(135deg,#102e48,#246b9a)}
+.a7{background:linear-gradient(135deg,#27204c,#5844a0)}
+.a8{background:linear-gradient(135deg,#123d38,#237e70)}
+.info{padding:18px}
+.info h3{margin:0 0 9px}
+.info p{color:#9aa9c2;font-size:13px;line-height:1.55;min-height:40px}
+.play{display:block;text-align:center;padding:12px;margin-top:15px;background:#00cde9;color:#06101d;text-decoration:none;font-weight:bold;border-radius:6px}
+.play:hover{background:white}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.stat{text-align:center;padding:22px;background:#121827;border:1px solid #27334b;border-radius:10px}
+.stat strong{display:block;color:#00eaff;font-size:29px;margin-bottom:7px}
+footer{text-align:center;padding:30px;color:#64728b;border-top:1px solid #20283a;margin-top:65px}
+@media(max-width:600px){
+ header{padding:0 4%}
+ nav{gap:11px}
+ nav a{font-size:12px}
+ .stats{grid-template-columns:1fr}
+ .wrap{width:92%}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NEXORA.</div>
+  <nav>
+    <a href="#">Home</a>
+    <a href="#games">Spiele</a>
+    <a href="#stats">Hub</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="tag">YOUR WORLD. YOUR GAMES.</div>
+  <h1>WELCOME TO <span>NEXORA</span></h1>
+  <p>Deine eigene Gaming-Welt.<br>
+  Entdecke Spiele, knacke Rekorde und werde zur Legende.</p>
+  <a class="btn" href="#games">SPIELE ENTDECKEN →</a>
+</section>
+
+<main class="wrap" id="games">
+  <h2 class="heading"><span>✦</span> SPIELEBIBLIOTHEK</h2>
+
+  <div class="grid">
+
+    <article class="card">
+      <div class="art a2">🚀</div>
+      <div class="info">
+        <h3>SPACE SHOOTER</h3>
+        <p>Weiche Asteroiden aus und verteidige die Galaxie.</p>
+        <a class="play" href="spiele/index.html?game=space">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a3">🐍</div>
+      <div class="info">
+        <h3>NEON SNAKE</h3>
+        <p>Sammle Energie und werde immer länger.</p>
+        <a class="play" href="spiele/index.html?game=snake">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a4">🏎️</div>
+      <div class="info">
+        <h3>NEON RACING</h3>
+        <p>Überhole den Verkehr und bleib auf der Strecke.</p>
+        <a class="play" href="spiele/index.html?game=racing">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a6">🧱</div>
+      <div class="info">
+        <h3>BLOCK WORLD</h3>
+        <p>Baue deine kleine Pixelwelt Stein für Stein.</p>
+        <a class="play" href="spiele/index.html?game=blocks">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a5">🧟</div>
+      <div class="info">
+        <h3>ZOMBIE SURVIVAL</h3>
+        <p>Bleib in Bewegung und überstehe die Zombie-Wellen.</p>
+        <a class="play" href="spiele/index.html?game=zombie">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a1">🦘</div>
+      <div class="info">
+        <h3>JUMP & RUN</h3>
+        <p>Springe über Hindernisse und sammle Sterne.</p>
+        <a class="play" href="spiele/index.html?game=platform">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a7">🏰</div>
+      <div class="info">
+        <h3>TOWER DEFENSE</h3>
+        <p>Platziere Verteidigungstürme und stoppe die Gegner.</p>
+        <a class="play" href="spiele/index.html?game=tower">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="art a8">👾</div>
+      <div class="info">
+        <h3>DUO ARENA</h3>
+        <p>Spiele lokal zu zweit an einer Tastatur.</p>
+        <a class="play" href="spiele/index.html?game=duo">JETZT SPIELEN →</a>
+      </div>
+    </article>
+
+  </div>
+
+  <section id="stats">
+    <h2 class="heading" style="margin-top:55px">
+      <span>✦</span> DEIN GAMING HUB
+    </h2>
+    <div class="stats">
+      <div class="stat"><strong>8</strong>SPIELE</div>
+      <div class="stat"><strong>∞</strong>NEUE REKORDE</div>
+      <div class="stat"><strong>1</strong>GAMING-WELT</div>
+    </div>
+  </section>
+</main>
+
+<footer>NEXORA GAMING © 2026 · MADE FOR GAMERS</footer>
+
+</body>
+</html>
